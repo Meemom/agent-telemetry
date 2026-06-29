@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentTelemetry Milestone 1 Implementation Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fa;
+        --panel: #ffffff;
+        --ink: #17202a;
+        --muted: #5d6d7e;
+        --line: #d8dee9;
+        --accent: #0969da;
+        --good: #1a7f37;
+        --code: #f1f4f8;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 24px 72px;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2.4rem;
+        line-height: 1.1;
+      }
+
+      h2 {
+        border-bottom: 1px solid var(--line);
+        margin-top: 34px;
+        padding-bottom: 8px;
+      }
+
+      h3 {
+        margin-top: 24px;
+      }
+
+      .summary {
+        color: var(--muted);
+        font-size: 1.05rem;
+        margin: 0;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin: 20px 0;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      code,
+      pre {
+        background: var(--code);
+        border-radius: 6px;
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      code {
+        padding: 2px 5px;
+      }
+
+      pre {
+        overflow-x: auto;
+        padding: 14px;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #eef3f8;
+      }
+
+      .status {
+        color: var(--good);
+        font-weight: 700;
+      }
+
+      .path {
+        color: var(--accent);
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>AgentTelemetry Milestone 1 Implementation Report</h1>
+        <p class="summary">
+          Repository: <code>Meemom/agent-telemetry</code><br />
+          Date: June 30, 2026<br />
+          Status: <span class="status">Implemented and verified</span>
+        </p>
+      </header>
+
+      <section>
+        <h2>Milestone 1 Scope</h2>
+        <p>
+          Milestone 1 establishes the foundation for AgentTelemetry: a Python
+          package scaffold, CLI entrypoint, core Pydantic schemas, JSONL trace
+          writer, and a basic test suite. This creates the base needed for later
+          LangGraph scanning, runtime instrumentation, adversarial testing, and
+          reporting.
+        </p>
+
+        <div class="grid">
+          <div class="card">
+            <strong>Package Scaffold</strong>
+            <span>Created a <code>src/agenttelemetry</code> Python package.</span>
+          </div>
+          <div class="card">
+            <strong>CLI</strong>
+            <span>Added Typer commands for version output and trace initialization.</span>
+          </div>
+          <div class="card">
+            <strong>Schemas</strong>
+            <span>Added Pydantic models for graphs, traces, findings, and tests.</span>
+          </div>
+          <div class="card">
+            <strong>Trace Writer</strong>
+            <span>Added JSONL trace persistence and an in-memory collector.</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Implemented Files</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path">pyproject.toml</td>
+              <td>
+                Defines project metadata, dependencies, package build config,
+                CLI script, pytest config, and linting defaults.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">.gitignore</td>
+              <td>
+                Ignores local virtual environments, Python caches, build output,
+                and generated run artifacts.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">README.md</td>
+              <td>
+                Documents Milestone 1 capabilities, installation, test running,
+                and sample trace creation.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">src/agenttelemetry/cli.py</td>
+              <td>
+                Provides the Typer CLI with <code>version</code> and
+                <code>init-trace</code> commands.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">src/agenttelemetry/model/*.py</td>
+              <td>
+                Defines graph, runtime trace, security finding, and test result
+                schemas using Pydantic.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">src/agenttelemetry/runtime/*.py</td>
+              <td>
+                Implements <code>InMemoryTraceCollector</code> and
+                <code>JsonlTraceWriter</code>.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">tests/*.py</td>
+              <td>
+                Verifies model serialization, runtime collection/writing, and CLI
+                behavior.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>CLI Behavior</h2>
+        <p>The package exposes the <code>agenttelemetry</code> command.</p>
+        <pre><code>agenttelemetry version
+agenttelemetry init-trace --workflow-name demo --output runs/trace.jsonl</code></pre>
+        <p>
+          The <code>init-trace</code> command writes a valid JSONL runtime event,
+          proving the CLI, trace model, and writer are connected.
+        </p>
+      </section>
+
+      <section>
+        <h2>Core Schemas</h2>
+        <ul>
+          <li><code>WorkflowGraph</code>, <code>GraphNode</code>, <code>GraphEdge</code>, and <code>ToolDefinition</code></li>
+          <li><code>RuntimeEvent</code>, <code>RuntimeEventType</code>, and <code>TraceRun</code></li>
+          <li><code>SecurityFinding</code>, <code>Severity</code>, and <code>Confidence</code></li>
+          <li><code>AssertionResult</code> and <code>TestResult</code></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Verification</h2>
+        <p>The test suite was run inside a repo-local virtual environment.</p>
+        <pre><code>.venv/bin/python -m pytest</code></pre>
+        <p class="status">Result: 7 passed in 0.32s</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Test File</th>
+              <th>Coverage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path">tests/test_models.py</td>
+              <td>Trace run creation, runtime event JSON shape, workflow graph defaults.</td>
+            </tr>
+            <tr>
+              <td class="path">tests/test_runtime.py</td>
+              <td>In-memory event collection and JSONL event writing.</td>
+            </tr>
+            <tr>
+              <td class="path">tests/test_cli.py</td>
+              <td>Version command and trace initialization command.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Notes</h2>
+        <ul>
+          <li>
+            The first install attempt revealed a Hatch package discovery issue
+            caused by the hyphenated project name. This was fixed by explicitly
+            configuring <code>packages = ["src/agenttelemetry"]</code>.
+          </li>
+          <li>
+            Runtime LangGraph instrumentation is intentionally not implemented in
+            Milestone 1. The current trace writer and schemas are the foundation
+            for that next step.
+          </li>
+          <li>
+            Generated local artifacts such as <code>.venv</code> and
+            <code>.pytest_cache</code> are ignored by the repository.
+          </li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
