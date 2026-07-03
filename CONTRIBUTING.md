@@ -8,13 +8,15 @@ python -m pip install -e ".[dev]"
 
 ## Checks
 
-Run the same core checks used by CI:
+Run the same checks used by CI:
 
 ```bash
+ruff check .
+ruff format --check .
 pytest
 agenttelemetry version
+python -m build
 ```
 
-Milestone 1 keeps CI intentionally small. Linting, formatting checks, coverage,
-and package build validation are planned for the CI/CD baseline milestone.
-
+Pull requests should pass all checks before review. Keep changes scoped to one
+milestone or one small behavior at a time.
