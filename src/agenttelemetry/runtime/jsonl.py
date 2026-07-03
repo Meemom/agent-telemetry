@@ -20,4 +20,3 @@ class JsonlTraceWriter:
     def write_many(self, events: list[RuntimeEvent]) -> None:
         for event in events:
             self.write(event)
-

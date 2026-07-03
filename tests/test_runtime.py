@@ -25,4 +25,3 @@ def test_jsonl_writer_writes_event(tmp_path) -> None:
     payload = json.loads(lines[0])
     assert payload["run_id"] == "run_123"
     assert payload["event_type"] == "run_start"
-

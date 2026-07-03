@@ -16,4 +16,3 @@ class TestResult(BaseModel):
     passed: bool
     assertion_results: list[AssertionResult] = Field(default_factory=list)
     findings: list[SecurityFinding] = Field(default_factory=list)
-

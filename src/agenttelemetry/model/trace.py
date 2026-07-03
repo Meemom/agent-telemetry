@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import uuid4
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class RuntimeEventType(StrEnum):
@@ -44,4 +44,3 @@ class TraceRun(BaseModel):
         cls, workflow_name: str, metadata: dict[str, Any] | None = None
     ) -> "TraceRun":
         return cls(workflow_name=workflow_name, metadata=metadata or {})
-
