@@ -65,4 +65,3 @@ def init_trace(
     table.add_row("workflow_name", workflow_name)
     table.add_row("output", str(output))
     console.print(table)
-

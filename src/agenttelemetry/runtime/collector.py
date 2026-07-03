@@ -13,4 +13,3 @@ class InMemoryTraceCollector:
     @property
     def events(self) -> list[RuntimeEvent]:
         return list(self._events)
-

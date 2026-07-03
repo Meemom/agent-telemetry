@@ -28,4 +28,3 @@ class SecurityFinding(BaseModel):
     static_evidence: list[str] = Field(default_factory=list)
     runtime_evidence: list[str] = Field(default_factory=list)
     remediation: str | None = None
-

@@ -45,4 +45,3 @@ class WorkflowGraph(BaseModel):
     edges: list[GraphEdge] = Field(default_factory=list)
     tools: list[ToolDefinition] = Field(default_factory=list)
     findings: list[SecurityFinding] = Field(default_factory=list)
-

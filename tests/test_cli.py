@@ -22,4 +22,3 @@ def test_init_trace_command(tmp_path) -> None:
 
     assert result.exit_code == 0
     assert output.exists()
-

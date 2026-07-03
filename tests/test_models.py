@@ -35,4 +35,3 @@ def test_workflow_graph_defaults_to_langgraph() -> None:
     assert graph.framework == "langgraph"
     assert graph.nodes[0].name == "START"
     assert graph.edges[0].target == "END"
-

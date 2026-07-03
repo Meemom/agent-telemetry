@@ -165,6 +165,10 @@
             <strong>Trace Writer</strong>
             <span>Added JSONL trace persistence and an in-memory collector.</span>
           </div>
+          <div class="card">
+            <strong>CI Workflow</strong>
+            <span>Added GitHub Actions verification for tests and CLI smoke checks.</span>
+          </div>
         </div>
       </section>
 
@@ -197,6 +201,20 @@
               <td>
                 Documents Milestone 1 capabilities, installation, test running,
                 and sample trace creation.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">CONTRIBUTING.md</td>
+              <td>
+                Lists local setup and verification commands that match the
+                Milestone 1 CI workflow.
+              </td>
+            </tr>
+            <tr>
+              <td class="path">.github/workflows/ci.yml</td>
+              <td>
+                Runs package installation, pytest, and CLI smoke verification on
+                pushes and pull requests.
               </td>
             </tr>
             <tr>
@@ -257,6 +275,14 @@ agenttelemetry init-trace --workflow-name demo --output runs/trace.jsonl</code><
         <p>The test suite was run inside a repo-local virtual environment.</p>
         <pre><code>.venv/bin/python -m pytest</code></pre>
         <p class="status">Result: 7 passed in 0.32s</p>
+        <p>
+          A fresh temporary virtual environment was also used to verify the
+          CI-style install and CLI entrypoint after moving the repository to its
+          final folder.
+        </p>
+        <pre><code>/private/tmp/agenttelemetry-ci-venv/bin/python -m pytest
+/private/tmp/agenttelemetry-ci-venv/bin/agenttelemetry version</code></pre>
+        <p class="status">Result: 7 passed; CLI printed AgentTelemetry 0.1.0</p>
         <table>
           <thead>
             <tr>
