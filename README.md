@@ -31,8 +31,23 @@ Run tests:
 pytest
 ```
 
+Run the CLI smoke test:
+
+```bash
+agenttelemetry version
+```
+
 Create a sample JSONL trace:
 
 ```bash
 agenttelemetry init-trace --workflow-name demo --output runs/trace.jsonl
 ```
+
+## CI
+
+GitHub Actions runs the Milestone 1 verification suite on pushes and pull
+requests:
+
+- install the package with development dependencies
+- run `pytest`
+- run `agenttelemetry version`
