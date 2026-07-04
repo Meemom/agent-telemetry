@@ -24,6 +24,16 @@ Milestone 2 implemented:
 - Package build validation.
 - GitHub Actions CI baseline for pushes and pull requests.
 
+Milestone 3 implemented:
+
+- Safe `customer_support` LangGraph fixture under
+  `examples/langgraph_apps/customer_support`.
+- Simulated `send_email` tool that records attempted actions and always returns
+  `sent=false`.
+- Adversarial test config for the first vertical slice:
+  `tool_not_called(send_email)`.
+- Integration tests proving the fixture can trigger and avoid the email path.
+
 ## Development
 
 Install the package with development dependencies:
@@ -46,6 +56,18 @@ Create a sample JSONL trace:
 
 ```bash
 agenttelemetry init-trace --workflow-name demo --output runs/trace.jsonl
+```
+
+Run the customer support fixture directly:
+
+```bash
+python examples/langgraph_apps/customer_support/app.py
+```
+
+Run the fixture integration test:
+
+```bash
+pytest tests/integration/test_customer_support_fixture.py
 ```
 
 ## CI
