@@ -18,5 +18,11 @@ agenttelemetry version
 python -m build
 ```
 
+Run the Milestone 3 fixture test directly:
+
+```bash
+pytest tests/integration/test_customer_support_fixture.py
+```
+
 Pull requests should pass all checks before review. Keep changes scoped to one
 milestone or one small behavior at a time.
