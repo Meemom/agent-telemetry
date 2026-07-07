@@ -5,6 +5,7 @@ from agenttelemetry.model.graph import (
     ToolDefinition,
     WorkflowGraph,
 )
+from agenttelemetry.model.manifest import RunManifest
 from agenttelemetry.model.test import AssertionResult, TestResult
 from agenttelemetry.model.trace import RuntimeEvent, RuntimeEventType, TraceRun
 
@@ -12,6 +13,7 @@ __all__ = [
     "AssertionResult",
     "GraphEdge",
     "GraphNode",
+    "RunManifest",
     "RuntimeEvent",
     "RuntimeEventType",
     "SecurityFinding",
