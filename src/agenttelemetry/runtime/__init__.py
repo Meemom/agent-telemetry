@@ -11,6 +11,7 @@ from agenttelemetry.runtime.isolated import (
     run_isolated_entrypoint,
 )
 from agenttelemetry.runtime.jsonl import JsonlTraceWriter
+from agenttelemetry.runtime.trace_capture import build_minimal_trace
 
 __all__ = [
     "Entrypoint",
@@ -19,6 +20,7 @@ __all__ = [
     "IsolatedRunResult",
     "JsonlTraceWriter",
     "TIMEOUT_EXIT_CODE",
+    "build_minimal_trace",
     "load_entrypoint_object",
     "parse_entrypoint",
     "run_isolated_entrypoint",

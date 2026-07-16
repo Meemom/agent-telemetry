@@ -14,6 +14,11 @@ from agenttelemetry.runtime import (
     parse_entrypoint,
     run_isolated_entrypoint,
 )
+from agenttelemetry.runtime.trace_capture import (
+    PayloadMode,
+    RedactionMode,
+    build_minimal_trace,
+)
 
 app = typer.Typer(
     name="agenttelemetry",
@@ -109,6 +114,20 @@ def observe(
             help="Allow real tool side effects in the child process.",
         ),
     ] = False,
+    payload_mode: Annotated[
+        PayloadMode,
+        typer.Option(
+            "--payload-mode",
+            help="Trace payload capture mode.",
+        ),
+    ] = "none",
+    redaction_mode: Annotated[
+        RedactionMode,
+        typer.Option(
+            "--redaction-mode",
+            help="Trace redaction mode.",
+        ),
+    ] = "strict",
 ) -> None:
     """Run a LangGraph entrypoint in an isolated subprocess."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -117,6 +136,8 @@ def observe(
         out_dir=str(out_dir),
         allow_live_tools=allow_live_tools,
         timeout_seconds=timeout_seconds,
+        payload_mode=payload_mode,
+        redaction_mode=redaction_mode,
     )
 
     try:
@@ -142,6 +163,18 @@ def observe(
 
     if result.output is not None:
         _write_json(out_dir / "output.json", result.output)
+    _write_trace(
+        out_dir / "trace.jsonl",
+        run_id=manifest.run_id,
+        entrypoint=entrypoint,
+        started_at=manifest.started_at,
+        ended_at=manifest.finished_at,
+        duration_ms=result.duration_ms,
+        tool_attempts=_tool_attempts(result.output),
+        allow_live_tools=allow_live_tools,
+        payload_mode=payload_mode,
+        redaction_mode=redaction_mode,
+    )
 
     table = Table(title="Isolated Run")
     table.add_column("Field")
@@ -171,6 +204,43 @@ def _read_json_file(path: Path) -> dict[str, Any]:
 
 def _write_manifest(out_dir: Path, manifest: RunManifest) -> None:
     _write_json(out_dir / "manifest.json", manifest.model_dump(mode="json"))
+
+
+def _write_trace(
+    path: Path,
+    *,
+    run_id: str,
+    entrypoint: str,
+    started_at,
+    ended_at,
+    duration_ms: float,
+    tool_attempts: list[Any],
+    allow_live_tools: bool,
+    payload_mode: PayloadMode,
+    redaction_mode: RedactionMode,
+) -> None:
+    writer = JsonlTraceWriter(path)
+    events = build_minimal_trace(
+        run_id=run_id,
+        entrypoint=entrypoint,
+        started_at=started_at,
+        ended_at=ended_at,
+        duration_ms=duration_ms,
+        tool_attempts=tool_attempts,
+        allow_live_tools=allow_live_tools,
+        payload_mode=payload_mode,
+        redaction_mode=redaction_mode,
+    )
+    writer.write_many(events)
+
+
+def _tool_attempts(output: dict[str, Any] | None) -> list[Any]:
+    if output is None:
+        return []
+    attempts = output.get("tool_attempts", [])
+    if not isinstance(attempts, list):
+        return []
+    return attempts
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

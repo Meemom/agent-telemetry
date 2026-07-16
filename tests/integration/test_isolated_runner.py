@@ -85,6 +85,77 @@ def test_observe_command_writes_manifest_with_safe_defaults(tmp_path: Path) -> N
     assert (out_dir / "output.json").exists()
 
 
+def test_observe_command_writes_minimal_trace(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "observe",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--input",
+            str(FIXTURE_DIR / "input.json"),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    trace_path = out_dir / "trace.jsonl"
+    assert trace_path.exists()
+    events = [
+        json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()
+    ]
+
+    assert [event["event_type"] for event in events] == [
+        "span_start",
+        "tool_call",
+        "span_end",
+    ]
+    trace_ids = {event["trace_id"] for event in events}
+    assert len(trace_ids) == 1
+    assert len(next(iter(trace_ids))) == 32
+
+    root_start, tool_call, root_end = events
+    assert len(root_start["span_id"]) == 16
+    assert root_start["span_id"] == root_end["span_id"]
+    assert tool_call["parent_span_id"] == root_start["span_id"]
+    assert root_end["duration_ms"] > 0
+    assert tool_call["attributes"]["agenttelemetry.tool_name"] == "send_email"
+    assert tool_call["attributes"]["agenttelemetry.framework"] == "langgraph"
+    assert tool_call["metadata"]["payload_mode"] == "none"
+    assert "tool_args" not in tool_call["metadata"]
+    assert "attacker@example.com" not in trace_path.read_text(encoding="utf-8")
+
+
+def test_observe_command_supports_full_redacted_payload_mode(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "observe",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--input",
+            str(FIXTURE_DIR / "input.json"),
+            "--out-dir",
+            str(out_dir),
+            "--payload-mode",
+            "full",
+        ],
+    )
+
+    assert result.exit_code == 0
+    events = [
+        json.loads(line)
+        for line in (out_dir / "trace.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    tool_call = next(event for event in events if event["event_type"] == "tool_call")
+    assert tool_call["metadata"]["tool_args"]["to"] == "[REDACTED_EMAIL]"
+
+
 def test_observe_command_records_live_tool_override(tmp_path: Path) -> None:
     runner = CliRunner()
     out_dir = tmp_path / "run"
