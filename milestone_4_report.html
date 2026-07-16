@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentTelemetry Milestone 4 Report</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172026;
+        --muted: #5f6f7a;
+        --line: #d8e1e8;
+        --bg: #f7fafc;
+        --panel: #ffffff;
+        --accent: #0f766e;
+        --accent-2: #854d0e;
+        --code: #102a43;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+      }
+
+      header {
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.15;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 5vw, 3.2rem);
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 1.45rem;
+        margin-top: 36px;
+      }
+
+      h3 {
+        font-size: 1rem;
+        margin-top: 22px;
+      }
+
+      p {
+        margin: 10px 0 0;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        font-size: 1.05rem;
+        max-width: 760px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .label {
+        color: var(--muted);
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .value {
+        display: block;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+
+      ol,
+      ul {
+        padding-left: 22px;
+      }
+
+      li {
+        margin: 8px 0;
+      }
+
+      code {
+        background: #eaf1f6;
+        border: 1px solid #d4e0e8;
+        border-radius: 5px;
+        color: var(--code);
+        padding: 1px 5px;
+      }
+
+      pre {
+        background: #0f1f2a;
+        border-radius: 8px;
+        color: #edf7ff;
+        overflow-x: auto;
+        padding: 16px;
+      }
+
+      pre code {
+        background: transparent;
+        border: 0;
+        color: inherit;
+        padding: 0;
+      }
+
+      table {
+        border-collapse: collapse;
+        margin-top: 14px;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .status {
+        color: var(--accent);
+        font-weight: 800;
+      }
+
+      .note {
+        border-left: 4px solid var(--accent-2);
+        color: var(--muted);
+        margin-top: 18px;
+        padding-left: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Milestone 4: Isolated Entrypoint Runner</h1>
+        <p class="subtitle">
+          Implemented a safe subprocess runner for LangGraph entrypoints so
+          AgentTelemetry can execute a user graph, enforce timeouts, suppress
+          live tool access by default, and write reproducible run metadata.
+        </p>
+      </header>
+
+      <section class="grid" aria-label="Milestone summary">
+        <div class="card">
+          <span class="label">Branch</span>
+          <span class="value">dev</span>
+        </div>
+        <div class="card">
+          <span class="label">Primary command</span>
+          <span class="value">agenttelemetry observe</span>
+        </div>
+        <div class="card">
+          <span class="label">Default safety mode</span>
+          <span class="value">Live tools disabled</span>
+        </div>
+        <div class="card">
+          <span class="label">Timeout exit code</span>
+          <span class="value">124</span>
+        </div>
+      </section>
+
+      <h2>What Changed</h2>
+      <ol>
+        <li>
+          Added entrypoint parsing for strings like
+          <code>examples/langgraph_apps/customer_support/app.py:graph</code>.
+        </li>
+        <li>
+          Added a subprocess worker that imports the graph from the target file
+          and invokes its <code>invoke</code> method with JSON input.
+        </li>
+        <li>
+          Added an isolated runner that starts the worker, passes JSON through
+          stdin, enforces timeouts, and returns structured execution results.
+        </li>
+        <li>
+          Added safe environment defaults:
+          <code>AGENTTELEMETRY_LIVE_TOOLS=0</code> unless the user passes
+          <code>--allow-live-tools</code>.
+        </li>
+        <li>
+          Added <code>RunManifest</code> so each run records schema version,
+          CLI version, entrypoint, output directory, timestamps, redaction mode,
+          payload mode, timeout, live-tool setting, and final exit code.
+        </li>
+        <li>
+          Added <code>agenttelemetry observe</code> to run one entrypoint and
+          write <code>manifest.json</code> plus <code>output.json</code>.
+        </li>
+        <li>
+          Added unit and integration tests for parser behavior, success,
+          timeout, invalid entrypoints, and manifest safety flags.
+        </li>
+      </ol>
+
+      <h2>Files Implemented</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>src/agenttelemetry/model/manifest.py</code></td>
+            <td>
+              Defines <code>RunManifest</code> for reproducible run metadata and
+              schema-versioned artifacts.
+            </td>
+          </tr>
+          <tr>
+            <td><code>src/agenttelemetry/runtime/entrypoint.py</code></td>
+            <td>
+              Parses <code>file.py:symbol</code>, validates files, imports the
+              user module, and resolves dotted symbols.
+            </td>
+          </tr>
+          <tr>
+            <td><code>src/agenttelemetry/runtime/worker.py</code></td>
+            <td>
+              Runs inside the child process, invokes the graph, and emits JSON
+              containing graph output and detected tool-attempt lists.
+            </td>
+          </tr>
+          <tr>
+            <td><code>src/agenttelemetry/runtime/isolated.py</code></td>
+            <td>
+              Owns subprocess execution, timeout handling, safe environment
+              construction, child output parsing, and exit-code mapping.
+            </td>
+          </tr>
+          <tr>
+            <td><code>src/agenttelemetry/cli.py</code></td>
+            <td>
+              Adds <code>observe</code> with <code>--input</code>,
+              <code>--out-dir</code>, <code>--timeout-seconds</code>, and
+              <code>--allow-live-tools</code>.
+            </td>
+          </tr>
+          <tr>
+            <td><code>tests/test_entrypoint.py</code></td>
+            <td>
+              Covers parser success, missing separator, missing file, and
+              missing symbol handling.
+            </td>
+          </tr>
+          <tr>
+            <td><code>tests/integration/test_isolated_runner.py</code></td>
+            <td>
+              Covers safe fixture execution, subprocess timeout, invalid
+              entrypoint exit behavior, and manifest live-tool flags.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Runtime Flow</h2>
+      <pre><code>agenttelemetry observe file.py:graph --input input.json --out-dir runs/test-run
+  -> parse entrypoint
+  -> create RunManifest
+  -> spawn python -m agenttelemetry.runtime.worker
+  -> send {"entrypoint": "...", "input": {...}} over stdin
+  -> worker imports graph and calls graph.invoke(input)
+  -> parent enforces timeout and captures JSON output
+  -> write runs/test-run/manifest.json
+  -> write runs/test-run/output.json on success</code></pre>
+
+      <h2>Generated Demo Artifacts</h2>
+      <p>
+        A manual smoke run was executed against the safe customer-support
+        fixture:
+      </p>
+      <pre><code>PYTHONPATH=src .venv/bin/python -m agenttelemetry observe \
+  examples/langgraph_apps/customer_support/app.py:graph \
+  --input examples/langgraph_apps/customer_support/input.json \
+  --out-dir runs/milestone-4-demo \
+  --timeout-seconds 10</code></pre>
+
+      <p>The run wrote:</p>
+      <ul>
+        <li><code>runs/milestone-4-demo/manifest.json</code></li>
+        <li><code>runs/milestone-4-demo/output.json</code></li>
+      </ul>
+
+      <h3>Manifest Highlights</h3>
+      <pre><code>{
+  "schema_version": "agenttelemetry.run.v1",
+  "entrypoint": "examples/langgraph_apps/customer_support/app.py:graph",
+  "allow_live_tools": false,
+  "payload_mode": "none",
+  "redaction_mode": "strict",
+  "timeout_seconds": 10.0,
+  "final_exit_code": 0
+}</code></pre>
+
+      <h3>Captured Tool Attempt</h3>
+      <pre><code>{
+  "attempted_tool": "send_email",
+  "to": "attacker@example.com",
+  "subject": "Customer support request",
+  "sent": "false"
+}</code></pre>
+
+      <h2>Acceptance Criteria</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Criterion</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Valid <code>customer_support/app.py:graph</code> runs in subprocess.</td>
+            <td class="status">Passed</td>
+          </tr>
+          <tr>
+            <td>Timeout returns exit code <code>124</code>.</td>
+            <td class="status">Passed</td>
+          </tr>
+          <tr>
+            <td>Missing file or invalid entrypoint returns exit code <code>2</code>.</td>
+            <td class="status">Passed</td>
+          </tr>
+          <tr>
+            <td>Default run records <code>allow_live_tools=false</code>.</td>
+            <td class="status">Passed</td>
+          </tr>
+          <tr>
+            <td><code>--allow-live-tools</code> is recorded in the manifest.</td>
+            <td class="status">Passed</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Verification</h2>
+      <ul>
+        <li><code>.venv/bin/ruff format --check .</code> passed.</li>
+        <li><code>.venv/bin/ruff check .</code> passed.</li>
+        <li><code>.venv/bin/python -m pytest</code> passed: 18 tests.</li>
+        <li><code>.venv/bin/python -m build</code> passed.</li>
+      </ul>
+
+      <p class="note">
+        Note: the local editable console script in this venv did not import the
+        package unless <code>PYTHONPATH=src</code> was set. Tests and the manual
+        smoke run were executed successfully with the source path available, and
+        package build completed successfully.
+      </p>
+    </main>
+  </body>
+</html>
