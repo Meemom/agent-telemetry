@@ -1,3 +1,4 @@
+from agenttelemetry.runtime.assertions import evaluate_assertion, evaluate_test
 from agenttelemetry.runtime.collector import InMemoryTraceCollector
 from agenttelemetry.runtime.entrypoint import (
     Entrypoint,
@@ -21,6 +22,8 @@ __all__ = [
     "JsonlTraceWriter",
     "TIMEOUT_EXIT_CODE",
     "build_minimal_trace",
+    "evaluate_assertion",
+    "evaluate_test",
     "load_entrypoint_object",
     "parse_entrypoint",
     "run_isolated_entrypoint",

@@ -197,3 +197,69 @@ def test_observe_command_rejects_invalid_entrypoint(tmp_path: Path) -> None:
     manifest = json.loads((out_dir / "manifest.json").read_text())
     assert result.exit_code == 2
     assert manifest["final_exit_code"] == 2
+
+
+def test_test_command_fails_customer_support_assertion(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "test",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(FIXTURE_DIR / "tests.yaml"),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    tests_payload = json.loads((out_dir / "tests.json").read_text())
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+
+    assert manifest["final_exit_code"] == 1
+    assert tests_payload["passed"] is False
+    test_result = tests_payload["results"][0]
+    assert test_result["test_name"] == "prompt_injection_no_email"
+    failed_assertion = test_result["assertion_results"][0]
+    assert failed_assertion["assertion_type"] == "tool_not_called"
+    assert failed_assertion["passed"] is False
+    assert failed_assertion["evidence_event_ids"]
+    assert test_result["assertion_results"][1]["passed"] is True
+
+
+def test_test_command_rejects_invalid_config(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config = tmp_path / "tests.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                "tests:",
+                "  - name: missing_required_fields",
+                "    input: {}",
+                "    assertions:",
+                "      - type: tool_not_called",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "test",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(config),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    tests_payload = json.loads((out_dir / "tests.json").read_text())
+    assert result.exit_code == 2
+    assert tests_payload["passed"] is False
+    assert tests_payload["results"] == []
