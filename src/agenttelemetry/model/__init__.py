@@ -1,4 +1,4 @@
-from agenttelemetry.model.finding import SecurityFinding, Severity
+from agenttelemetry.model.finding import Confidence, SecurityFinding, Severity
 from agenttelemetry.model.graph import (
     GraphEdge,
     GraphNode,
@@ -19,6 +19,7 @@ __all__ = [
     "AssertionResult",
     "AssertionConfig",
     "ConfiguredTest",
+    "Confidence",
     "GraphEdge",
     "GraphNode",
     "RunManifest",

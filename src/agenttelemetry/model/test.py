@@ -39,6 +39,7 @@ class TestSuiteConfig(BaseModel):
 
 
 class AssertionResult(BaseModel):
+    assertion_id: str
     assertion_type: str
     passed: bool
     message: str

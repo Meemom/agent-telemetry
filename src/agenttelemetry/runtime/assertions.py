@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from hashlib import sha256
 from typing import Any
 
 from agenttelemetry.model import (
@@ -24,10 +25,11 @@ def evaluate_test(
     assertion_results = [
         evaluate_assertion(
             assertion,
+            assertion_id=_assertion_id(configured_test.name, index, assertion),
             trace_events=trace_events,
             final_output=final_output,
         )
-        for assertion in configured_test.assertions
+        for index, assertion in enumerate(configured_test.assertions)
     ]
     return TestResult(
         run_id=run_id,
@@ -40,24 +42,39 @@ def evaluate_test(
 def evaluate_assertion(
     assertion: AssertionConfig,
     *,
+    assertion_id: str | None = None,
     trace_events: list[RuntimeEvent],
     final_output: dict[str, Any] | None,
 ) -> AssertionResult:
+    assertion_id = assertion_id or _assertion_id("adhoc", 0, assertion)
     if assertion.type == "tool_called":
-        return _evaluate_tool_called(assertion, trace_events)
+        return _evaluate_tool_called(assertion, assertion_id, trace_events)
     if assertion.type == "tool_not_called":
-        return _evaluate_tool_not_called(assertion, trace_events)
+        return _evaluate_tool_not_called(assertion, assertion_id, trace_events)
     if assertion.type == "regex_matches":
-        return _evaluate_regex(assertion, trace_events, final_output, should_match=True)
-    return _evaluate_regex(assertion, trace_events, final_output, should_match=False)
+        return _evaluate_regex(
+            assertion,
+            assertion_id,
+            trace_events,
+            final_output,
+            should_match=True,
+        )
+    return _evaluate_regex(
+        assertion,
+        assertion_id,
+        trace_events,
+        final_output,
+        should_match=False,
+    )
 
 
 def _evaluate_tool_called(
-    assertion: AssertionConfig, trace_events: list[RuntimeEvent]
+    assertion: AssertionConfig, assertion_id: str, trace_events: list[RuntimeEvent]
 ) -> AssertionResult:
     matches = _tool_events(trace_events, assertion.tool or "")
     passed = bool(matches)
     return AssertionResult(
+        assertion_id=assertion_id,
         assertion_type=assertion.type,
         passed=passed,
         message=(
@@ -70,11 +87,12 @@ def _evaluate_tool_called(
 
 
 def _evaluate_tool_not_called(
-    assertion: AssertionConfig, trace_events: list[RuntimeEvent]
+    assertion: AssertionConfig, assertion_id: str, trace_events: list[RuntimeEvent]
 ) -> AssertionResult:
     matches = _tool_events(trace_events, assertion.tool or "")
     passed = not matches
     return AssertionResult(
+        assertion_id=assertion_id,
         assertion_type=assertion.type,
         passed=passed,
         message=(
@@ -88,6 +106,7 @@ def _evaluate_tool_not_called(
 
 def _evaluate_regex(
     assertion: AssertionConfig,
+    assertion_id: str,
     trace_events: list[RuntimeEvent],
     final_output: dict[str, Any] | None,
     *,
@@ -111,6 +130,7 @@ def _evaluate_regex(
     verb = "matched" if matched else "did not match"
     expectation = "match" if should_match else "not match"
     return AssertionResult(
+        assertion_id=assertion_id,
         assertion_type=assertion.type,
         passed=passed,
         message=f"Pattern {verb} target {assertion.target}; expected {expectation}.",
@@ -141,3 +161,17 @@ def _regex_haystacks(
             if event.event_type == RuntimeEventType.TOOL_CALL
         ]
     return [(None, json.dumps(final_output or {}, sort_keys=True))]
+
+
+def _assertion_id(test_name: str, index: int, assertion: AssertionConfig) -> str:
+    raw = ":".join(
+        [
+            test_name,
+            str(index),
+            assertion.type,
+            assertion.tool or "",
+            assertion.target or "",
+            assertion.pattern or "",
+        ]
+    )
+    return f"assert_{sha256(raw.encode()).hexdigest()[:12]}"

@@ -14,6 +14,7 @@ from agenttelemetry.model import (
     RunManifest,
     RuntimeEvent,
     RuntimeEventType,
+    SecurityFinding,
     TestResult,
     TestSuiteConfig,
     TraceRun,
@@ -22,6 +23,7 @@ from agenttelemetry.model.trace import utc_now
 from agenttelemetry.runtime import (
     EntrypointError,
     JsonlTraceWriter,
+    create_findings,
     evaluate_test,
     parse_entrypoint,
     run_isolated_entrypoint,
@@ -270,6 +272,7 @@ def test(
                 "results": [],
             },
         )
+        _write_findings_json(out_dir, manifest.run_id, [])
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(2) from exc
 
@@ -288,6 +291,7 @@ def test(
 
     if result.exit_code != 0:
         _write_tests_json(out_dir, manifest.run_id, [])
+        _write_findings_json(out_dir, manifest.run_id, [])
         raise typer.Exit(result.exit_code)
 
     test_result = evaluate_test(
@@ -296,11 +300,14 @@ def test(
         trace_events=trace_events,
         final_output=result.output.get("output") if result.output else None,
     )
+    findings = create_findings(test_result, trace_events)
+    test_result.findings = findings
     final_exit_code = 0 if test_result.passed else 1
     manifest.final_exit_code = final_exit_code
     manifest.finished_at = utc_now()
     _write_manifest(out_dir, manifest)
     _write_tests_json(out_dir, manifest.run_id, [test_result])
+    _write_findings_json(out_dir, manifest.run_id, findings)
 
     table = Table(title="Deterministic Test Run")
     table.add_column("Field")
@@ -417,6 +424,19 @@ def _write_tests_json(out_dir: Path, run_id: str, results: list[TestResult]) -> 
             "run_id": run_id,
             "passed": all(result.passed for result in results),
             "results": [result.model_dump(mode="json") for result in results],
+        },
+    )
+
+
+def _write_findings_json(
+    out_dir: Path, run_id: str, findings: list[SecurityFinding]
+) -> None:
+    _write_json(
+        out_dir / "findings.json",
+        {
+            "schema_version": "agenttelemetry.findings.v1",
+            "run_id": run_id,
+            "findings": [finding.model_dump(mode="json") for finding in findings],
         },
     )
 
