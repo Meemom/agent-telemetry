@@ -93,6 +93,7 @@ def build_report_json(
 def build_report_html(report: dict[str, Any]) -> str:
     manifest = report["manifest"]
     findings = report["findings"]
+    static_graph = report["static"]
     tests = report["tests"]["results"]
     trace = report["trace_summary"]
     findings_rows = "\n".join(_finding_row(finding) for finding in findings) or (
@@ -105,6 +106,14 @@ def build_report_html(report: dict[str, Any]) -> str:
     entrypoint = escape(manifest["entrypoint"])
     final_exit_code = manifest["final_exit_code"]
     tools = escape(", ".join(trace["tool_names"]))
+    static_status = escape(str(static_graph.get("status", "unknown")))
+    static_entrypoint = escape(str(static_graph.get("entrypoint", "")))
+    static_nodes = escape(
+        ", ".join(node.get("name", "") for node in static_graph.get("nodes", []))
+    )
+    static_tools = escape(
+        ", ".join(tool.get("name", "") for tool in static_graph.get("tools", []))
+    )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -208,6 +217,20 @@ def build_report_html(report: dict[str, Any]) -> str:
           <td>{trace["tool_calls_total"]}</td>
           <td>{tools}</td>
           <td>{trace["duration_ms"]}</td>
+        </tr>
+      </table>
+      <h2>Static Context</h2>
+      <table>
+        <tr><th>Status</th><th>Best Effort</th><th>Entrypoint</th></tr>
+        <tr>
+          <td>{static_status}</td>
+          <td>{static_graph.get("best_effort", True)}</td>
+          <td><code>{static_entrypoint}</code></td>
+        </tr>
+        <tr><th>Nodes</th><th colspan="2">Tools</th></tr>
+        <tr>
+          <td>{static_nodes}</td>
+          <td colspan="2">{static_tools}</td>
         </tr>
       </table>
       <h2>Tests</h2>

@@ -341,12 +341,21 @@ def test_ci_command_writes_full_artifact_layout_and_reports(tmp_path: Path) -> N
 
     report = json.loads((out_dir / "report.json").read_text())
     manifest = json.loads((out_dir / "manifest.json").read_text())
+    static_payload = json.loads((out_dir / "static.json").read_text())
     html = (out_dir / "report.html").read_text(encoding="utf-8")
 
     assert manifest["final_exit_code"] == 1
     assert report["schema_version"] == "agenttelemetry.report.v1"
     assert report["manifest"]["run_id"] == manifest["run_id"]
-    assert report["static"]["entrypoint"] == f"{FIXTURE_DIR / 'app.py'}:graph"
+    assert static_payload["entrypoint"] == f"{FIXTURE_DIR / 'app.py'}:graph"
+    assert static_payload["status"] == "ok"
+    assert static_payload["best_effort"] is True
+    assert {node["name"] for node in static_payload["nodes"]} == {
+        "send_email",
+        "triage",
+    }
+    assert {tool["name"] for tool in static_payload["tools"]} == {"send_email"}
+    assert report["static"] == static_payload
     assert report["trace_summary"]["event_count"] == 3
     assert report["trace_summary"]["tool_calls_total"] == 1
     assert report["tests"]["passed"] is False
@@ -356,6 +365,8 @@ def test_ci_command_writes_full_artifact_layout_and_reports(tmp_path: Path) -> N
     assert "https://" not in html
     assert "http://" not in html
     assert "AgentTelemetry Report" in html
+    assert "Static Context" in html
+    assert "Best Effort" in html
 
 
 def test_ci_command_respects_severity_threshold(tmp_path: Path) -> None:
@@ -416,3 +427,40 @@ def test_ci_command_writes_reports_for_invalid_config(tmp_path: Path) -> None:
     tests_payload = json.loads((out_dir / "tests.json").read_text())
     assert manifest["final_exit_code"] == 2
     assert tests_payload["passed"] is False
+
+
+def test_ci_command_continues_when_static_context_fails(
+    tmp_path: Path, monkeypatch
+) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    def fail_static_context(entrypoint: str):
+        raise RuntimeError(f"static failure for {entrypoint}")
+
+    monkeypatch.setattr(
+        "agenttelemetry.cli.build_static_context",
+        fail_static_context,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "ci",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(FIXTURE_DIR / "tests.yaml"),
+            "--out-dir",
+            str(out_dir),
+            "--severity-threshold",
+            "critical",
+        ],
+    )
+
+    static_payload = json.loads((out_dir / "static.json").read_text())
+    report = json.loads((out_dir / "report.json").read_text())
+    assert result.exit_code == 0
+    assert static_payload["status"] == "error"
+    assert static_payload["best_effort"] is True
+    assert "static failure" in static_payload["error"]
+    assert report["static"] == static_payload
