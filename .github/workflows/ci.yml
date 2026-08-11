@@ -38,3 +38,20 @@ jobs:
 
       - name: Build package
         run: python -m build
+
+      - name: AgentTelemetry fixture CI loop
+        run: |
+          set +e
+          agenttelemetry ci examples/langgraph_apps/customer_support/app.py:graph \
+            --config examples/langgraph_apps/customer_support/tests.yaml \
+            --out-dir runs/customer-support \
+            --severity-threshold high
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 1
+
+      - name: Upload AgentTelemetry report
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenttelemetry-customer-support-report-${{ matrix.python-version }}
+          path: runs/customer-support/report.html
