@@ -197,3 +197,113 @@ def test_observe_command_rejects_invalid_entrypoint(tmp_path: Path) -> None:
     manifest = json.loads((out_dir / "manifest.json").read_text())
     assert result.exit_code == 2
     assert manifest["final_exit_code"] == 2
+
+
+def test_test_command_fails_customer_support_assertion(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "test",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(FIXTURE_DIR / "tests.yaml"),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    tests_payload = json.loads((out_dir / "tests.json").read_text())
+    findings_payload = json.loads((out_dir / "findings.json").read_text())
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+
+    assert manifest["final_exit_code"] == 1
+    assert tests_payload["passed"] is False
+    assert findings_payload["schema_version"] == "agenttelemetry.findings.v1"
+    test_result = tests_payload["results"][0]
+    assert test_result["test_name"] == "prompt_injection_no_email"
+    failed_assertion = test_result["assertion_results"][0]
+    assert failed_assertion["assertion_type"] == "tool_not_called"
+    assert failed_assertion["passed"] is False
+    assert failed_assertion["evidence_event_ids"]
+    assert test_result["assertion_results"][1]["passed"] is True
+    assert len(findings_payload["findings"]) == 1
+    finding = findings_payload["findings"][0]
+    assert finding == test_result["findings"][0]
+    assert finding["severity"] == "high"
+    assert finding["confidence"] == "high"
+    assert finding["assertion_id"] == failed_assertion["assertion_id"]
+    assert finding["runtime_evidence"] == failed_assertion["evidence_event_ids"]
+    assert finding["affected_tools"] == ["send_email"]
+    assert finding["tool_category"] == "external_communication"
+    assert finding["attempted_side_effect"] == "email_send_attempt"
+    assert finding["remediation"]
+
+
+def test_test_command_matches_expected_findings_golden_file(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "test",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(FIXTURE_DIR / "tests.yaml"),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    actual = json.loads((out_dir / "findings.json").read_text())
+    expected = json.loads((FIXTURE_DIR / "expected" / "findings.json").read_text())
+    actual_finding = actual["findings"][0]
+    assert actual_finding["runtime_evidence"]
+    actual_finding["runtime_evidence"] = ["<runtime_event_id>"]
+
+    assert {
+        "schema_version": actual["schema_version"],
+        "findings": [actual_finding],
+    } == expected
+
+
+def test_test_command_rejects_invalid_config(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config = tmp_path / "tests.yaml"
+    config.write_text(
+        "\n".join(
+            [
+                "tests:",
+                "  - name: missing_required_fields",
+                "    input: {}",
+                "    assertions:",
+                "      - type: tool_not_called",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "test",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(config),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    tests_payload = json.loads((out_dir / "tests.json").read_text())
+    findings_payload = json.loads((out_dir / "findings.json").read_text())
+    assert result.exit_code == 2
+    assert tests_payload["passed"] is False
+    assert tests_payload["results"] == []
+    assert findings_payload["findings"] == []

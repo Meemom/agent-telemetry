@@ -1,4 +1,4 @@
-from agenttelemetry.model.finding import SecurityFinding, Severity
+from agenttelemetry.model.finding import Confidence, SecurityFinding, Severity
 from agenttelemetry.model.graph import (
     GraphEdge,
     GraphNode,
@@ -6,11 +6,20 @@ from agenttelemetry.model.graph import (
     WorkflowGraph,
 )
 from agenttelemetry.model.manifest import RunManifest
-from agenttelemetry.model.test import AssertionResult, TestResult
+from agenttelemetry.model.test import (
+    AssertionConfig,
+    AssertionResult,
+    ConfiguredTest,
+    TestResult,
+    TestSuiteConfig,
+)
 from agenttelemetry.model.trace import RuntimeEvent, RuntimeEventType, TraceRun
 
 __all__ = [
     "AssertionResult",
+    "AssertionConfig",
+    "ConfiguredTest",
+    "Confidence",
     "GraphEdge",
     "GraphNode",
     "RunManifest",
@@ -19,6 +28,7 @@ __all__ = [
     "SecurityFinding",
     "Severity",
     "TestResult",
+    "TestSuiteConfig",
     "ToolDefinition",
     "TraceRun",
     "WorkflowGraph",
