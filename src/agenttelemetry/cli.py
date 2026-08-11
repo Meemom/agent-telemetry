@@ -15,6 +15,7 @@ from agenttelemetry.model import (
     RuntimeEvent,
     RuntimeEventType,
     SecurityFinding,
+    Severity,
     TestResult,
     TestSuiteConfig,
     TraceRun,
@@ -23,10 +24,14 @@ from agenttelemetry.model.trace import utc_now
 from agenttelemetry.runtime import (
     EntrypointError,
     JsonlTraceWriter,
+    build_report_json,
+    build_static_placeholder,
     create_findings,
     evaluate_test,
+    finding_meets_threshold,
     parse_entrypoint,
     run_isolated_entrypoint,
+    write_report_artifacts,
 )
 from agenttelemetry.runtime.isolated import IsolatedRunResult
 from agenttelemetry.runtime.trace_capture import (
@@ -319,6 +324,157 @@ def test(
     raise typer.Exit(final_exit_code)
 
 
+@app.command()
+def ci(
+    entrypoint: Annotated[
+        str,
+        typer.Argument(help="LangGraph entrypoint in the form file.py:graph."),
+    ],
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            help="YAML file containing deterministic adversarial tests.",
+        ),
+    ],
+    out_dir: Annotated[
+        Path,
+        typer.Option(
+            "--out-dir",
+            help="Directory that should receive CI artifacts.",
+        ),
+    ] = Path("runs/test-run"),
+    severity_threshold: Annotated[
+        Severity,
+        typer.Option(
+            "--severity-threshold",
+            help="Minimum finding severity that should fail CI.",
+        ),
+    ] = Severity.HIGH,
+    timeout_seconds: Annotated[
+        float,
+        typer.Option(
+            "--timeout-seconds",
+            min=0.1,
+            help="Maximum seconds allowed for subprocess execution.",
+        ),
+    ] = 30.0,
+    allow_live_tools: Annotated[
+        bool,
+        typer.Option(
+            "--allow-live-tools",
+            help="Allow real tool side effects in the child process.",
+        ),
+    ] = False,
+    payload_mode: Annotated[
+        PayloadMode,
+        typer.Option(
+            "--payload-mode",
+            help="Trace payload capture mode.",
+        ),
+    ] = "none",
+    redaction_mode: Annotated[
+        RedactionMode,
+        typer.Option(
+            "--redaction-mode",
+            help="Trace redaction mode.",
+        ),
+    ] = "strict",
+) -> None:
+    """Run the core CI security loop and write stable report artifacts."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest = RunManifest(
+        entrypoint=entrypoint,
+        config_path=str(config),
+        config_sha256=_file_sha256(config) if config.exists() else None,
+        out_dir=str(out_dir),
+        allow_live_tools=allow_live_tools,
+        timeout_seconds=timeout_seconds,
+        payload_mode=payload_mode,
+        redaction_mode=redaction_mode,
+    )
+    static_graph = build_static_placeholder(entrypoint)
+    _write_json(out_dir / "static.json", static_graph)
+
+    try:
+        parsed_entrypoint = parse_entrypoint(entrypoint)
+        suite = _load_test_suite(config)
+    except (EntrypointError, ValueError, ValidationError) as exc:
+        _write_empty_ci_artifacts(
+            out_dir=out_dir,
+            manifest=manifest,
+            static_graph=static_graph,
+            error=str(exc),
+        )
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(2) from exc
+
+    configured_test = suite.tests[0]
+    result, trace_events = _run_and_write_artifacts(
+        entrypoint=entrypoint,
+        parsed_entrypoint=parsed_entrypoint,
+        input_payload=configured_test.input,
+        out_dir=out_dir,
+        manifest=manifest,
+        timeout_seconds=timeout_seconds,
+        allow_live_tools=allow_live_tools,
+        payload_mode=payload_mode,
+        redaction_mode=redaction_mode,
+    )
+
+    if result.exit_code != 0:
+        manifest.final_exit_code = 2
+        manifest.finished_at = utc_now()
+        _write_manifest(out_dir, manifest)
+        _write_tests_json(out_dir, manifest.run_id, [])
+        _write_findings_json(out_dir, manifest.run_id, [])
+        _write_ci_report(
+            out_dir=out_dir,
+            manifest=manifest,
+            static_graph=static_graph,
+            trace_events=trace_events,
+            test_results=[],
+            findings=[],
+        )
+        raise typer.Exit(2)
+
+    test_result = evaluate_test(
+        configured_test,
+        run_id=manifest.run_id,
+        trace_events=trace_events,
+        final_output=result.output.get("output") if result.output else None,
+    )
+    findings = create_findings(test_result, trace_events)
+    test_result.findings = findings
+    failed_threshold = any(
+        finding_meets_threshold(finding, severity_threshold) for finding in findings
+    )
+    final_exit_code = 1 if failed_threshold else 0
+    manifest.final_exit_code = final_exit_code
+    manifest.finished_at = utc_now()
+    _write_manifest(out_dir, manifest)
+    _write_tests_json(out_dir, manifest.run_id, [test_result])
+    _write_findings_json(out_dir, manifest.run_id, findings)
+    _write_ci_report(
+        out_dir=out_dir,
+        manifest=manifest,
+        static_graph=static_graph,
+        trace_events=trace_events,
+        test_results=[test_result],
+        findings=findings,
+    )
+
+    table = Table(title="CI Security Run")
+    table.add_column("Field")
+    table.add_column("Value")
+    table.add_row("test_name", configured_test.name)
+    table.add_row("severity_threshold", severity_threshold.value)
+    table.add_row("findings", str(len(findings)))
+    table.add_row("exit_code", str(final_exit_code))
+    console.print(table)
+    raise typer.Exit(final_exit_code)
+
+
 def _read_json_file(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise ValueError(f"Input file does not exist: {path}")
@@ -439,6 +595,58 @@ def _write_findings_json(
             "findings": [finding.model_dump(mode="json") for finding in findings],
         },
     )
+
+
+def _write_empty_ci_artifacts(
+    *,
+    out_dir: Path,
+    manifest: RunManifest,
+    static_graph: dict[str, Any],
+    error: str,
+) -> None:
+    manifest.final_exit_code = 2
+    manifest.finished_at = utc_now()
+    _write_manifest(out_dir, manifest)
+    _write_json(out_dir / "output.json", {"error": error})
+    (out_dir / "trace.jsonl").write_text("", encoding="utf-8")
+    _write_json(
+        out_dir / "tests.json",
+        {
+            "schema_version": "agenttelemetry.tests.v1",
+            "run_id": manifest.run_id,
+            "passed": False,
+            "error": error,
+            "results": [],
+        },
+    )
+    _write_findings_json(out_dir, manifest.run_id, [])
+    _write_ci_report(
+        out_dir=out_dir,
+        manifest=manifest,
+        static_graph=static_graph,
+        trace_events=[],
+        test_results=[],
+        findings=[],
+    )
+
+
+def _write_ci_report(
+    *,
+    out_dir: Path,
+    manifest: RunManifest,
+    static_graph: dict[str, Any],
+    trace_events: list[RuntimeEvent],
+    test_results: list[TestResult],
+    findings: list[SecurityFinding],
+) -> None:
+    report = build_report_json(
+        manifest=manifest,
+        static_graph=static_graph,
+        trace_events=trace_events,
+        test_results=test_results,
+        findings=findings,
+    )
+    write_report_artifacts(out_dir, report)
 
 
 def _tool_attempts(output: dict[str, Any] | None) -> list[Any]:
