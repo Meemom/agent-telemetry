@@ -23,6 +23,9 @@ class SecurityFinding(BaseModel):
     severity: Severity
     confidence: Confidence = Confidence.MEDIUM
     description: str
+    assertion_id: str | None = None
+    tool_category: str | None = None
+    attempted_side_effect: str | None = None
     affected_nodes: list[str] = Field(default_factory=list)
     affected_tools: list[str] = Field(default_factory=list)
     static_evidence: list[str] = Field(default_factory=list)

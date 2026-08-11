@@ -1,48 +1,127 @@
 # AgentTelemetry
 
-AgentTelemetry is a security and observability toolkit for LangGraph agentic
-systems. The first milestone provides the project skeleton, CLI, core Pydantic
-schemas, a JSONL trace writer, and a basic test suite.
+AgentTelemetry is a local CLI toolkit for testing LangGraph agent workflows for
+unsafe tool use. It runs a graph in an isolated subprocess, captures a minimal
+runtime trace, evaluates deterministic assertions, and emits evidence-backed
+security findings.
 
-## Milestones
+Current MVP loop:
 
-Milestone 1 implemented:
+```text
+LangGraph app -> isolated run -> trace.jsonl -> tests.json -> findings.json
+```
 
-- Python package scaffold under `src/agenttelemetry`.
-- Typer CLI with `version` and `init-trace` commands.
-- Pydantic models for workflow graphs, runtime traces, findings, and test
-  results.
-- Runtime trace primitives:
-  - `InMemoryTraceCollector`
-  - `JsonlTraceWriter`
-- Pytest test suite covering models, runtime writer, and CLI basics.
+## Features
 
-Milestone 2 implemented:
+- Explicit LangGraph entrypoint loading with `file.py:graph`.
+- Subprocess execution with timeout handling.
+- Live tool side effects disabled by default through
+  `AGENTTELEMETRY_LIVE_TOOLS=0`.
+- JSONL runtime trace with span-style `trace_id`, `span_id`, parent span, timing,
+  attributes, and tool-call events.
+- Payload capture modes: `none`, `summary`, `full`.
+- Redaction modes: `strict`, `metadata`, `off`.
+- Deterministic assertions:
+  - `tool_called`
+  - `tool_not_called`
+  - `regex_matches`
+  - `regex_not_matches`
+- Built-in `send_email` risk mapping to create high-severity findings from
+  failed runtime assertions.
+- Stable artifacts: `manifest.json`, `output.json`, `trace.jsonl`,
+  `tests.json`, `findings.json`.
 
-- Ruff linting and format checks.
-- Pytest coverage reporting.
-- Package build validation.
-- GitHub Actions CI baseline for pushes and pull requests.
+## Tech Stack
 
-Milestone 3 implemented:
+- Python 3.11+
+- Typer CLI
+- Pydantic schemas
+- PyYAML test config loading
+- Rich terminal output
+- LangGraph fixture support
+- JSONL trace storage
+- Pytest and pytest-cov
+- Ruff linting and formatting
+- Hatchling package build
+- GitHub Actions CI
 
-- Safe `customer_support` LangGraph fixture under
-  `examples/langgraph_apps/customer_support`.
-- Simulated `send_email` tool that records attempted actions and always returns
-  `sent=false`.
-- Adversarial test config for the first vertical slice:
-  `tool_not_called(send_email)`.
-- Integration tests proving the fixture can trigger and avoid the email path.
-
-## Development
-
-Install the package with development dependencies:
+## Install
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-Run the full local check suite:
+## Usage
+
+Print the CLI version:
+
+```bash
+agenttelemetry version
+```
+
+Create a basic trace event:
+
+```bash
+agenttelemetry init-trace --workflow-name demo --output runs/trace.jsonl
+```
+
+Run a LangGraph app in the isolated runner:
+
+```bash
+agenttelemetry observe \
+  examples/langgraph_apps/customer_support/app.py:graph \
+  --input examples/langgraph_apps/customer_support/input.json \
+  --out-dir runs/customer-support
+```
+
+Run deterministic adversarial tests:
+
+```bash
+agenttelemetry test \
+  examples/langgraph_apps/customer_support/app.py:graph \
+  --config examples/langgraph_apps/customer_support/tests.yaml \
+  --out-dir runs/customer-support
+```
+
+Expected fixture result: exit code `1`, because the adversarial test triggers a
+simulated `send_email` attempt and fails `tool_not_called(send_email)`.
+
+## Artifacts
+
+`agenttelemetry observe` writes:
+
+```text
+runs/customer-support/
+  manifest.json
+  output.json
+  trace.jsonl
+```
+
+`agenttelemetry test` writes:
+
+```text
+runs/customer-support/
+  manifest.json
+  output.json
+  trace.jsonl
+  tests.json
+  findings.json
+```
+
+## Fixture
+
+The included fixture is:
+
+```text
+examples/langgraph_apps/customer_support/
+```
+
+It exports `app.py:graph` and uses a simulated `send_email` tool that records
+attempted actions instead of sending email.
+
+## Development
+
+Run local checks:
 
 ```bash
 ruff check .
@@ -52,32 +131,9 @@ agenttelemetry version
 python -m build
 ```
 
-Create a sample JSONL trace:
+Generated run artifacts are written under `runs/` and are not part of source
+control.
 
-```bash
-agenttelemetry init-trace --workflow-name demo --output runs/trace.jsonl
-```
+## Documentation
 
-Run the customer support fixture directly:
-
-```bash
-python examples/langgraph_apps/customer_support/app.py
-```
-
-Run the fixture integration test:
-
-```bash
-pytest tests/integration/test_customer_support_fixture.py
-```
-
-## CI
-
-GitHub Actions runs the Milestone 2 verification suite on pushes and pull
-requests:
-
-- install the package with development dependencies
-- run `ruff check .`
-- run `ruff format --check .`
-- run `pytest` with coverage
-- run `agenttelemetry version`
-- run `python -m build`
+Milestone implementation reports are stored in `docs/`.
