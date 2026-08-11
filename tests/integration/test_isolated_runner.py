@@ -307,3 +307,112 @@ def test_test_command_rejects_invalid_config(tmp_path: Path) -> None:
     assert tests_payload["passed"] is False
     assert tests_payload["results"] == []
     assert findings_payload["findings"] == []
+
+
+def test_ci_command_writes_full_artifact_layout_and_reports(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "ci",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(FIXTURE_DIR / "tests.yaml"),
+            "--out-dir",
+            str(out_dir),
+            "--severity-threshold",
+            "high",
+        ],
+    )
+
+    assert result.exit_code == 1
+    for artifact in [
+        "manifest.json",
+        "static.json",
+        "trace.jsonl",
+        "tests.json",
+        "findings.json",
+        "report.json",
+        "report.html",
+    ]:
+        assert (out_dir / artifact).exists()
+
+    report = json.loads((out_dir / "report.json").read_text())
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+    html = (out_dir / "report.html").read_text(encoding="utf-8")
+
+    assert manifest["final_exit_code"] == 1
+    assert report["schema_version"] == "agenttelemetry.report.v1"
+    assert report["manifest"]["run_id"] == manifest["run_id"]
+    assert report["static"]["entrypoint"] == f"{FIXTURE_DIR / 'app.py'}:graph"
+    assert report["trace_summary"]["event_count"] == 3
+    assert report["trace_summary"]["tool_calls_total"] == 1
+    assert report["tests"]["passed"] is False
+    assert report["findings_summary"]["count"] == 1
+    assert report["findings_summary"]["highest_severity"] == "high"
+    assert report["findings"][0]["severity"] == "high"
+    assert "https://" not in html
+    assert "http://" not in html
+    assert "AgentTelemetry Report" in html
+
+
+def test_ci_command_respects_severity_threshold(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+
+    result = runner.invoke(
+        app,
+        [
+            "ci",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(FIXTURE_DIR / "tests.yaml"),
+            "--out-dir",
+            str(out_dir),
+            "--severity-threshold",
+            "critical",
+        ],
+    )
+
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+    report = json.loads((out_dir / "report.json").read_text())
+    assert result.exit_code == 0
+    assert manifest["final_exit_code"] == 0
+    assert report["findings_summary"]["highest_severity"] == "high"
+
+
+def test_ci_command_writes_reports_for_invalid_config(tmp_path: Path) -> None:
+    runner = CliRunner()
+    out_dir = tmp_path / "run"
+    config = tmp_path / "invalid.yaml"
+    config.write_text("tests: []\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "ci",
+            f"{FIXTURE_DIR / 'app.py'}:graph",
+            "--config",
+            str(config),
+            "--out-dir",
+            str(out_dir),
+        ],
+    )
+
+    assert result.exit_code == 2
+    for artifact in [
+        "manifest.json",
+        "static.json",
+        "trace.jsonl",
+        "tests.json",
+        "findings.json",
+        "report.json",
+        "report.html",
+    ]:
+        assert (out_dir / artifact).exists()
+    manifest = json.loads((out_dir / "manifest.json").read_text())
+    tests_payload = json.loads((out_dir / "tests.json").read_text())
+    assert manifest["final_exit_code"] == 2
+    assert tests_payload["passed"] is False

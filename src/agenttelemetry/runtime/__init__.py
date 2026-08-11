@@ -17,6 +17,16 @@ from agenttelemetry.runtime.isolated import (
     run_isolated_entrypoint,
 )
 from agenttelemetry.runtime.jsonl import JsonlTraceWriter
+from agenttelemetry.runtime.reports import (
+    build_report_html,
+    build_report_json,
+    build_static_placeholder,
+    finding_meets_threshold,
+    findings_summary,
+    highest_severity,
+    trace_summary,
+    write_report_artifacts,
+)
 from agenttelemetry.runtime.trace_capture import build_minimal_trace
 
 __all__ = [
@@ -28,11 +38,19 @@ __all__ = [
     "TIMEOUT_EXIT_CODE",
     "BUILT_IN_TOOL_RISKS",
     "ToolRisk",
+    "build_report_html",
+    "build_report_json",
+    "build_static_placeholder",
     "build_minimal_trace",
     "create_findings",
     "evaluate_assertion",
     "evaluate_test",
+    "finding_meets_threshold",
+    "findings_summary",
+    "highest_severity",
     "load_entrypoint_object",
     "parse_entrypoint",
     "run_isolated_entrypoint",
+    "trace_summary",
+    "write_report_artifacts",
 ]

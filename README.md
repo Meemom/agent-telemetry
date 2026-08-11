@@ -8,7 +8,7 @@ security findings.
 Current MVP loop:
 
 ```text
-LangGraph app -> isolated run -> trace.jsonl -> tests.json -> findings.json
+LangGraph app -> isolated run -> trace.jsonl -> tests.json -> findings.json -> report
 ```
 
 ## Features
@@ -29,7 +29,8 @@ LangGraph app -> isolated run -> trace.jsonl -> tests.json -> findings.json
 - Built-in `send_email` risk mapping to create high-severity findings from
   failed runtime assertions.
 - Stable artifacts: `manifest.json`, `output.json`, `trace.jsonl`,
-  `tests.json`, `findings.json`.
+  `tests.json`, `findings.json`, `report.json`, `report.html`.
+- CI command with severity-threshold exit behavior.
 
 ## Tech Stack
 
@@ -86,6 +87,16 @@ agenttelemetry test \
 Expected fixture result: exit code `1`, because the adversarial test triggers a
 simulated `send_email` attempt and fails `tool_not_called(send_email)`.
 
+Run the CI security loop and write reports:
+
+```bash
+agenttelemetry ci \
+  examples/langgraph_apps/customer_support/app.py:graph \
+  --config examples/langgraph_apps/customer_support/tests.yaml \
+  --out-dir runs/customer-support \
+  --severity-threshold high
+```
+
 ## Artifacts
 
 `agenttelemetry observe` writes:
@@ -106,6 +117,20 @@ runs/customer-support/
   trace.jsonl
   tests.json
   findings.json
+```
+
+`agenttelemetry ci` writes:
+
+```text
+runs/customer-support/
+  manifest.json
+  static.json
+  output.json
+  trace.jsonl
+  tests.json
+  findings.json
+  report.json
+  report.html
 ```
 
 ## Fixture
