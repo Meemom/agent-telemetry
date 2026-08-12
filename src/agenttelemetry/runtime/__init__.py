@@ -27,6 +27,10 @@ from agenttelemetry.runtime.reports import (
     trace_summary,
     write_report_artifacts,
 )
+from agenttelemetry.runtime.static_context import (
+    build_static_context,
+    build_static_error,
+)
 from agenttelemetry.runtime.trace_capture import build_minimal_trace
 
 __all__ = [
@@ -41,6 +45,8 @@ __all__ = [
     "build_report_html",
     "build_report_json",
     "build_static_placeholder",
+    "build_static_context",
+    "build_static_error",
     "build_minimal_trace",
     "create_findings",
     "evaluate_assertion",

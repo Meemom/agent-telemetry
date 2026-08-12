@@ -28,6 +28,7 @@ LangGraph app -> isolated run -> trace.jsonl -> tests.json -> findings.json -> r
   - `regex_not_matches`
 - Built-in `send_email` risk mapping to create high-severity findings from
   failed runtime assertions.
+- Best-effort static context for LangGraph fixtures via AST parsing.
 - Stable artifacts: `manifest.json`, `output.json`, `trace.jsonl`,
   `tests.json`, `findings.json`, `report.json`, `report.html`.
 - CI command with severity-threshold exit behavior.
@@ -132,6 +133,10 @@ runs/customer-support/
   report.json
   report.html
 ```
+
+`static.json` is best-effort context. It records the entrypoint, exported
+symbol, detected fixture nodes, edges, and local tools when they are visible
+from source without executing user code.
 
 ## Fixture
 
