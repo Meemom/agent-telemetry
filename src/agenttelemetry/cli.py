@@ -25,7 +25,8 @@ from agenttelemetry.runtime import (
     EntrypointError,
     JsonlTraceWriter,
     build_report_json,
-    build_static_placeholder,
+    build_static_context,
+    build_static_error,
     create_findings,
     evaluate_test,
     finding_meets_threshold,
@@ -393,7 +394,10 @@ def ci(
         payload_mode=payload_mode,
         redaction_mode=redaction_mode,
     )
-    static_graph = build_static_placeholder(entrypoint)
+    try:
+        static_graph = build_static_context(entrypoint)
+    except Exception as exc:
+        static_graph = build_static_error(entrypoint, exc)
     _write_json(out_dir / "static.json", static_graph)
 
     try:
