@@ -21,11 +21,17 @@ LangGraph app -> isolated run -> trace.jsonl -> tests.json -> findings.json -> r
   attributes, and tool-call events.
 - Payload capture modes: `none`, `summary`, `full`.
 - Redaction modes: `strict`, `metadata`, `off`.
+  - `strict` and `metadata` redact emails, SSN-like values, API-key-like
+    tokens, and Luhn-valid credit-card-like numbers before trace writes.
 - Deterministic assertions:
   - `tool_called`
   - `tool_not_called`
   - `regex_matches`
   - `regex_not_matches`
+  - `node_reached`
+  - `node_not_reached`
+  - `error_absent`
+  - `max_tool_calls`
 - Built-in `send_email` risk mapping to create high-severity findings from
   failed runtime assertions.
 - Best-effort static context for LangGraph fixtures via AST parsing.

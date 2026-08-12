@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentTelemetry Milestone 10 Report</title>
+    <style>
+      body {
+        margin: 0;
+        color: #151515;
+        background: #f7f7f4;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+      main {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 48px 24px 72px;
+      }
+      h1,
+      h2 {
+        line-height: 1.15;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 38px;
+      }
+      h2 {
+        margin-top: 34px;
+        font-size: 22px;
+      }
+      .summary {
+        max-width: 760px;
+        color: #444;
+        font-size: 17px;
+      }
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+        margin: 28px 0;
+      }
+      .meta div,
+      section {
+        border: 1px solid #deded7;
+        background: #fff;
+        border-radius: 8px;
+      }
+      .meta div {
+        padding: 14px 16px;
+      }
+      .label {
+        display: block;
+        color: #666;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      section {
+        padding: 20px 22px;
+      }
+      code {
+        border: 1px solid #e1e1da;
+        border-radius: 4px;
+        background: #f4f4ef;
+        padding: 1px 5px;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 0.94em;
+      }
+      ul {
+        padding-left: 22px;
+      }
+      li + li {
+        margin-top: 8px;
+      }
+      .status {
+        color: #0f6b3d;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Milestone 10: Broaden Assertions And Redaction</h1>
+      <p class="summary">
+        Implemented additional deterministic assertion types and expanded
+        trace-time redaction so AgentTelemetry can catch more runtime policy
+        violations while keeping sensitive payload data out of JSONL artifacts.
+      </p>
+
+      <div class="meta">
+        <div>
+          <span class="label">Branch</span>
+          <code>milestone-10</code>
+        </div>
+        <div>
+          <span class="label">Base</span>
+          <code>milestone-9</code>
+        </div>
+        <div>
+          <span class="label">Status</span>
+          <span class="status">Implemented</span>
+        </div>
+      </div>
+
+      <section>
+        <h2>Assertion Schema</h2>
+        <ul>
+          <li>
+            Updated <code>src/agenttelemetry/model/test.py</code> to accept
+            <code>node_reached</code>, <code>node_not_reached</code>,
+            <code>error_absent</code>, and <code>max_tool_calls</code>.
+          </li>
+          <li>
+            Added validation for required fields:
+            <code>node</code> is required for node assertions, and
+            <code>max_count</code> is required for <code>max_tool_calls</code>.
+          </li>
+          <li>
+            Kept <code>tool</code> optional for <code>max_tool_calls</code> so
+            tests can cap either all tool calls or one named tool.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Assertion Engine</h2>
+        <ul>
+          <li>
+            Updated <code>src/agenttelemetry/runtime/assertions.py</code> with
+            deterministic evaluators for node reachability, error absence, and
+            maximum tool-call count.
+          </li>
+          <li>
+            Added evidence event IDs for every new assertion path whenever
+            matching runtime evidence exists.
+          </li>
+          <li>
+            Included the new assertion fields in stable assertion ID generation
+            so reports distinguish tests with different nodes or limits.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Trace Redaction</h2>
+        <ul>
+          <li>
+            Updated <code>src/agenttelemetry/runtime/trace_capture.py</code> to
+            redact email addresses, SSN-like values, API-key-like tokens, and
+            credit-card-like numbers before runtime events are written.
+          </li>
+          <li>
+            Added Luhn validation for credit-card candidates to reduce noisy
+            redaction of ordinary long numeric strings.
+          </li>
+          <li>
+            Preserved <code>redaction_mode=off</code> for explicit unsafe local
+            debugging while keeping <code>strict</code> as the default.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Tests And Docs</h2>
+        <ul>
+          <li>
+            Expanded <code>tests/test_assertions.py</code> with coverage for all
+            new assertion types and their evidence IDs.
+          </li>
+          <li>
+            Expanded <code>tests/test_runtime.py</code> to write a full-payload
+            trace to <code>trace.jsonl</code> and verify raw sensitive values do
+            not appear in the artifact.
+          </li>
+          <li>
+            Updated <code>README.md</code> with the new assertion types and
+            redaction scope.
+          </li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

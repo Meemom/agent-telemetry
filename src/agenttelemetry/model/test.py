@@ -11,15 +11,25 @@ class AssertionConfig(BaseModel):
         "tool_not_called",
         "regex_matches",
         "regex_not_matches",
+        "node_reached",
+        "node_not_reached",
+        "error_absent",
+        "max_tool_calls",
     ]
     tool: str | None = None
+    node: str | None = None
     target: Literal["output", "tool_args"] | None = None
     pattern: str | None = None
+    max_count: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_required_fields(self) -> "AssertionConfig":
         if self.type in {"tool_called", "tool_not_called"} and not self.tool:
             raise ValueError(f"{self.type} requires a tool field")
+        if self.type in {"node_reached", "node_not_reached"} and not self.node:
+            raise ValueError(f"{self.type} requires a node field")
+        if self.type == "max_tool_calls" and self.max_count is None:
+            raise ValueError("max_tool_calls requires a max_count field")
         if self.type in {"regex_matches", "regex_not_matches"}:
             if not self.target:
                 raise ValueError(f"{self.type} requires a target field")
