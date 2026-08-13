@@ -11,6 +11,9 @@ PayloadMode = Literal["none", "summary", "full"]
 RedactionMode = Literal["strict", "metadata", "off"]
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+_API_KEY_RE = re.compile(r"(?i)\b(?:sk|pk|api|key|token)[-_]?[A-Za-z0-9_-]{16,}\b")
+_CREDIT_CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
 
 
 def build_minimal_trace(
@@ -130,8 +133,36 @@ def _redact(value: Any, redaction_mode: RedactionMode) -> Any:
     if isinstance(value, list):
         return [_redact(child, redaction_mode) for child in value]
     if isinstance(value, str):
-        redacted = _EMAIL_RE.sub("[REDACTED_EMAIL]", value)
+        redacted = _redact_sensitive_text(value)
         if redaction_mode == "strict" and len(redacted) > 80:
             return f"{redacted[:77]}..."
         return redacted
     return value
+
+
+def _redact_sensitive_text(value: str) -> str:
+    redacted = _EMAIL_RE.sub("[REDACTED_EMAIL]", value)
+    redacted = _SSN_RE.sub("[REDACTED_SSN]", redacted)
+    redacted = _API_KEY_RE.sub("[REDACTED_API_KEY]", redacted)
+    return _CREDIT_CARD_RE.sub(_redact_credit_card_candidate, redacted)
+
+
+def _redact_credit_card_candidate(match: re.Match[str]) -> str:
+    candidate = match.group(0)
+    digits = re.sub(r"\D", "", candidate)
+    if 13 <= len(digits) <= 19 and _passes_luhn(digits):
+        return "[REDACTED_CREDIT_CARD]"
+    return candidate
+
+
+def _passes_luhn(digits: str) -> bool:
+    checksum = 0
+    reverse_digits = digits[::-1]
+    for index, char in enumerate(reverse_digits):
+        value = int(char)
+        if index % 2 == 1:
+            value *= 2
+            if value > 9:
+                value -= 9
+        checksum += value
+    return checksum % 10 == 0
